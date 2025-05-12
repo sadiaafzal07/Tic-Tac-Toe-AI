@@ -1,97 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Tic-Tac-Toe AI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe AI</title>
     <style>
-        body {
-            text-align: center;
-            font-family: Arial;
-        }
-        h1 {
-            margin-top: 30px;
-        }
+        /* Add some basic styling */
         .board {
             display: grid;
             grid-template-columns: repeat(3, 100px);
-            grid-gap: 5px;
-            justify-content: center;
-            margin-top: 20px;
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
         }
         .cell {
             width: 100px;
             height: 100px;
-            font-size: 32px;
-            font-weight: bold;
-            background-color: #f0f0f0;
-            cursor: pointer;
+            text-align: center;
+            font-size: 2em;
+            border: 1px solid #000;
             display: flex;
-            align-items: center;
             justify-content: center;
-            border: 2px solid #555;
+            align-items: center;
         }
         .cell:hover {
-            background-color: #ddd;
-        }
-        #status {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            font-size: 16px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <h1>Tic-Tac-Toe (You = X, AI = O)</h1>
+    <h1>Tic Tac Toe with AI</h1>
     <div class="board" id="board"></div>
-    <div id="status"></div>
-    <button onclick="resetGame()">Reset Game</button>
 
     <script>
+        let board = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
+        let currentPlayer = 'X'; // Player starts with 'X'
+
         const boardElement = document.getElementById("board");
-        const statusElement = document.getElementById("status");
 
-        let board = Array(9).fill("");
-
-        function drawBoard() {
-            boardElement.innerHTML = "";
-            board.forEach((cell, i) => {
-                const div = document.createElement("div");
-                div.className = "cell";
-                div.textContent = cell;
-                div.onclick = () => makeMove(i);
-                boardElement.appendChild(div);
+        // Function to render the board
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            board.forEach((cell, index) => {
+                const cellElement = document.createElement('div');
+                cellElement.classList.add('cell');
+                cellElement.innerText = cell;
+                cellElement.onclick = () => handleMove(index);
+                boardElement.appendChild(cellElement);
             });
         }
 
-        function makeMove(pos) {
-            if (board[pos] !== "") return;
+        // Handle player move
+        function handleMove(index) {
+            if (board[index] !== ' ') return;  // Skip if the cell is already filled
+            board[index] = currentPlayer;
+            renderBoard();
 
-            fetch("/move", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ position: pos })
+            // Check for winner or tie here if necessary
+
+            // Switch turns
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+
+            // Send the board to the server for AI move
+            fetch('/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ board: board })
             })
-            .then(res => res.json())
+            .then(response => response.json())
             .then(data => {
-                board = data.board;
-                statusElement.textContent = data.status;
-                drawBoard();
-            });
+                const aiMove = data.move;
+                if (aiMove !== -1) {
+                    board[aiMove] = 'O';  // Update board with AI's move
+                    renderBoard();
+                    currentPlayer = 'X'; // Switch back to player
+                }
+            })
+            .catch(error => console.error('Error:', error));
         }
 
-        function resetGame() {
-            fetch("/reset", { method: "POST" })
-            .then(() => {
-                board = Array(9).fill("");
-                statusElement.textContent = "";
-                drawBoard();
-            });
-        }
-
-        drawBoard();
+        renderBoard();  // Initial render
     </script>
 </body>
 </html>
