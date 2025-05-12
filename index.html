@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic-Tac-Toe AI</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial;
+        }
+        h1 {
+            margin-top: 30px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 5px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            font-size: 32px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #555;
+        }
+        .cell:hover {
+            background-color: #ddd;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic-Tac-Toe (You = X, AI = O)</h1>
+    <div class="board" id="board"></div>
+    <div id="status"></div>
+    <button onclick="resetGame()">Reset Game</button>
+
+    <script>
+        const boardElement = document.getElementById("board");
+        const statusElement = document.getElementById("status");
+
+        let board = Array(9).fill("");
+
+        function drawBoard() {
+            boardElement.innerHTML = "";
+            board.forEach((cell, i) => {
+                const div = document.createElement("div");
+                div.className = "cell";
+                div.textContent = cell;
+                div.onclick = () => makeMove(i);
+                boardElement.appendChild(div);
+            });
+        }
+
+        function makeMove(pos) {
+            if (board[pos] !== "") return;
+
+            fetch("/move", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ position: pos })
+            })
+            .then(res => res.json())
+            .then(data => {
+                board = data.board;
+                statusElement.textContent = data.status;
+                drawBoard();
+            });
+        }
+
+        function resetGame() {
+            fetch("/reset", { method: "POST" })
+            .then(() => {
+                board = Array(9).fill("");
+                statusElement.textContent = "";
+                drawBoard();
+            });
+        }
+
+        drawBoard();
+    </script>
+</body>
+</html>
