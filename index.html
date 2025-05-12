@@ -1,86 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe AI</title>
-    <style>
-        /* Add some basic styling */
-        .board {
-            display: grid;
-            grid-template-columns: repeat(3, 100px);
-            grid-template-rows: repeat(3, 100px);
-            gap: 5px;
-        }
-        .cell {
-            width: 100px;
-            height: 100px;
-            text-align: center;
-            font-size: 2em;
-            border: 1px solid #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .cell:hover {
-            cursor: pointer;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic Tac Toe AI</title>
+  <style>
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      margin-bottom: 20px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      text-align: center;
+      font-size: 2em;
+      border: 1px solid #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cell:hover {
+      cursor: pointer;
+      background-color: #f0f0f0;
+    }
+    #status {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+    #reset {
+      padding: 8px 15px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <h1>Tic Tac Toe with AI</h1>
-    <div class="board" id="board"></div>
+  <h1>Tic Tac Toe with AI</h1>
+  <div id="status">Your turn (X)</div>
+  <div class="board" id="board"></div>
+  <button id="reset">Reset Game</button>
 
-    <script>
-        let board = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
-        let currentPlayer = 'X'; // Player starts with 'X'
+  <script>
+    let board = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
+    let currentPlayer = 'X'; // Player always 'X'
+    let gameOver = false;
 
-        const boardElement = document.getElementById("board");
+    const boardElement = document.getElementById("board");
+    const statusElement = document.getElementById("status");
+    const resetButton = document.getElementById("reset");
 
-        // Function to render the board
-        function renderBoard() {
-            boardElement.innerHTML = '';
-            board.forEach((cell, index) => {
-                const cellElement = document.createElement('div');
-                cellElement.classList.add('cell');
-                cellElement.innerText = cell;
-                cellElement.onclick = () => handleMove(index);
-                boardElement.appendChild(cellElement);
-            });
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      board.forEach((cell, index) => {
+        const cellElement = document.createElement('div');
+        cellElement.classList.add('cell');
+        cellElement.innerText = cell;
+        cellElement.onclick = () => handleMove(index);
+        boardElement.appendChild(cellElement);
+      });
+    }
+
+    function checkWinner(player) {
+      const winConditions = [
+        [0,1,2], [3,4,5], [6,7,8],
+        [0,3,6], [1,4,7], [2,5,8],
+        [0,4,8], [2,4,6]
+      ];
+      return winConditions.some(([a, b, c]) => 
+        board[a] === player && board[b] === player && board[c] === player
+      );
+    }
+
+    function isTie() {
+      return board.every(cell => cell !== ' ');
+    }
+
+    function handleMove(index) {
+      if (board[index] !== ' ' || gameOver) return;
+
+      board[index] = currentPlayer;
+      renderBoard();
+
+      if (checkWinner(currentPlayer)) {
+        statusElement.innerText = `${currentPlayer} wins!`;
+        gameOver = true;
+        return;
+      }
+
+      if (isTie()) {
+        statusElement.innerText = "It's a tie!";
+        gameOver = true;
+        return;
+      }
+
+      currentPlayer = 'O';
+      statusElement.innerText = "AI is thinking...";
+
+      fetch('/move', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ board })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const aiMove = data.move;
+        if (aiMove !== -1) {
+          board[aiMove] = 'O';
+          renderBoard();
+
+          if (checkWinner('O')) {
+            statusElement.innerText = "AI (O) wins!";
+            gameOver = true;
+          } else if (isTie()) {
+            statusElement.innerText = "It's a tie!";
+            gameOver = true;
+          } else {
+            currentPlayer = 'X';
+            statusElement.innerText = "Your turn (X)";
+          }
         }
+      });
+    }
 
-        // Handle player move
-        function handleMove(index) {
-            if (board[index] !== ' ') return;  // Skip if the cell is already filled
-            board[index] = currentPlayer;
-            renderBoard();
+    function resetGame() {
+      board = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
+      currentPlayer = 'X';
+      gameOver = false;
+      statusElement.innerText = "Your turn (X)";
+      renderBoard();
+    }
 
-            // Check for winner or tie here if necessary
-
-            // Switch turns
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-
-            // Send the board to the server for AI move
-            fetch('/move', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ board: board })
-            })
-            .then(response => response.json())
-            .then(data => {
-                const aiMove = data.move;
-                if (aiMove !== -1) {
-                    board[aiMove] = 'O';  // Update board with AI's move
-                    renderBoard();
-                    currentPlayer = 'X'; // Switch back to player
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-
-        renderBoard();  // Initial render
-    </script>
+    resetButton.onclick = resetGame;
+    renderBoard();
+  </script>
 </body>
 </html>
