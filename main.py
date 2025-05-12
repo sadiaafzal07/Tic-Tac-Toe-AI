@@ -1,99 +1,72 @@
-from flask import Flask, render_template, request, jsonify
-import copy
+from flask import Flask, send_from_directory, jsonify, request
+import os
 
 app = Flask(__name__)
 
-# Initialize the board
-board = [""] * 9
+# Path to the root directory
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Minimax with Alpha-Beta Pruning
+def is_winner(board, player):
+    win_conditions = [(0,1,2),(3,4,5),(6,7,8),
+                      (0,3,6),(1,4,7),(2,5,8),
+                      (0,4,8),(2,4,6)]
+    return any(board[i]==board[j]==board[k]==player for i,j,k in win_conditions)
+
 def minimax(board, depth, is_maximizing, alpha, beta):
-    winner = check_winner(board)
-    if winner == "O":
+    if is_winner(board, 'O'):
         return 1
-    elif winner == "X":
+    if is_winner(board, 'X'):
         return -1
-    elif "" not in board:
+    if ' ' not in board:
         return 0
 
     if is_maximizing:
-        best_score = -float("inf")
+        max_eval = -float('inf')
         for i in range(9):
-            if board[i] == "":
-                board[i] = "O"
-                score = minimax(board, depth + 1, False, alpha, beta)
-                board[i] = ""
-                best_score = max(score, best_score)
-                alpha = max(alpha, score)
+            if board[i] == ' ':
+                board[i] = 'O'
+                eval = minimax(board, depth+1, False, alpha, beta)
+                board[i] = ' '
+                max_eval = max(max_eval, eval)
+                alpha = max(alpha, eval)
                 if beta <= alpha:
                     break
-        return best_score
+        return max_eval
     else:
-        best_score = float("inf")
+        min_eval = float('inf')
         for i in range(9):
-            if board[i] == "":
-                board[i] = "X"
-                score = minimax(board, depth + 1, True, alpha, beta)
-                board[i] = ""
-                best_score = min(score, best_score)
-                beta = min(beta, score)
+            if board[i] == ' ':
+                board[i] = 'X'
+                eval = minimax(board, depth+1, True, alpha, beta)
+                board[i] = ' '
+                min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
                 if beta <= alpha:
                     break
-        return best_score
+        return min_eval
 
-def get_best_move():
-    best_score = -float("inf")
-    move = None
+def best_move(board):
+    best_val = -float('inf')
+    move = -1
     for i in range(9):
-        if board[i] == "":
-            board[i] = "O"
-            score = minimax(board, 0, False, -float("inf"), float("inf"))
-            board[i] = ""
-            if score > best_score:
-                best_score = score
+        if board[i] == ' ':
+            board[i] = 'O'
+            move_val = minimax(board, 0, False, -float('inf'), float('inf'))
+            board[i] = ' '
+            if move_val > best_val:
+                best_val = move_val
                 move = i
     return move
 
-def check_winner(brd):
-    win_combinations = [
-        (0,1,2), (3,4,5), (6,7,8),
-        (0,3,6), (1,4,7), (2,5,8),
-        (0,4,8), (2,4,6)
-    ]
-    for (i, j, k) in win_combinations:
-        if brd[i] != "" and brd[i] == brd[j] and brd[j] == brd[k]:
-            return brd[i]
-    return None
+@app.route('/')
+def home():
+    return send_from_directory(ROOT_DIR, 'index.html')
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/move", methods=["POST"])
+@app.route('/move', methods=['POST'])
 def move():
-    global board
-    data = request.get_json()
-    position = data["position"]
-    board[position] = "X"
+    board = request.json['board']
+    ai_move = best_move(board)
+    return jsonify({'move': ai_move})
 
-    if check_winner(board) or "" not in board:
-        return jsonify(board=board, status=check_winner(board) or "Draw")
-
-    ai_move = get_best_move()
-    board[ai_move] = "O"
-
-    result = check_winner(board)
-    status = result if result else "Continue"
-    if "" not in board and result is None:
-        status = "Draw"
-
-    return jsonify(board=board, status=status)
-
-@app.route("/reset", methods=["POST"])
-def reset():
-    global board
-    board = [""] * 9
-    return jsonify(success=True)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
